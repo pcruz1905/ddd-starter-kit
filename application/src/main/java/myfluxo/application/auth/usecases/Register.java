@@ -4,6 +4,7 @@ import jakarta.inject.Singleton;
 import myfluxo.application.UnitOfWork;
 import myfluxo.application.UseCase;
 import myfluxo.application.auth.AuthSession;
+import myfluxo.application.auth.RefreshTokenTtl;
 import myfluxo.application.auth.commands.RegisterCommand;
 import myfluxo.domain.auth.Credentials;
 import myfluxo.domain.auth.CredentialsRepository;
@@ -61,7 +62,7 @@ public final class Register implements UseCase<RegisterCommand, AuthSession, Aut
         DomainEventPublisher events,
         UnitOfWork uow,
         Clock clock,
-        Duration refreshTokenTtl
+        RefreshTokenTtl refreshTokenTtl
     ) {
         this.users = users;
         this.credentials = credentials;
@@ -72,7 +73,7 @@ public final class Register implements UseCase<RegisterCommand, AuthSession, Aut
         this.events = events;
         this.uow = uow;
         this.clock = clock;
-        this.refreshTokenTtl = refreshTokenTtl;
+        this.refreshTokenTtl = refreshTokenTtl.value();
     }
 
     @Override

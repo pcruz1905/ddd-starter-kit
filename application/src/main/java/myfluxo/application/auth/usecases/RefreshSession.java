@@ -4,6 +4,7 @@ import jakarta.inject.Singleton;
 import myfluxo.application.UnitOfWork;
 import myfluxo.application.UseCase;
 import myfluxo.application.auth.AuthSession;
+import myfluxo.application.auth.RefreshTokenTtl;
 import myfluxo.application.auth.commands.RefreshSessionCommand;
 import myfluxo.domain.auth.RefreshToken;
 import myfluxo.domain.auth.RefreshTokenRepository;
@@ -61,7 +62,7 @@ public final class RefreshSession implements UseCase<RefreshSessionCommand, Auth
         TokenIssuer tokenIssuer,
         UnitOfWork uow,
         Clock clock,
-        Duration refreshTokenTtl
+        RefreshTokenTtl refreshTokenTtl
     ) {
         this.refreshTokens = refreshTokens;
         this.users = users;
@@ -69,7 +70,7 @@ public final class RefreshSession implements UseCase<RefreshSessionCommand, Auth
         this.tokenIssuer = tokenIssuer;
         this.uow = uow;
         this.clock = clock;
-        this.refreshTokenTtl = refreshTokenTtl;
+        this.refreshTokenTtl = refreshTokenTtl.value();
     }
 
     @Override

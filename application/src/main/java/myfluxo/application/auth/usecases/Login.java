@@ -4,6 +4,7 @@ import jakarta.inject.Singleton;
 import myfluxo.application.UnitOfWork;
 import myfluxo.application.UseCase;
 import myfluxo.application.auth.AuthSession;
+import myfluxo.application.auth.RefreshTokenTtl;
 import myfluxo.application.auth.commands.LoginCommand;
 import myfluxo.domain.auth.CredentialsRepository;
 import myfluxo.domain.auth.PasswordHasher;
@@ -81,7 +82,7 @@ public final class Login implements UseCase<LoginCommand, AuthSession, AuthError
         RefreshTokenStrategy refreshStrategy,
         UnitOfWork uow,
         Clock clock,
-        Duration refreshTokenTtl
+        RefreshTokenTtl refreshTokenTtl
     ) {
         this.users = users;
         this.credentials = credentials;
@@ -91,7 +92,7 @@ public final class Login implements UseCase<LoginCommand, AuthSession, AuthError
         this.refreshStrategy = refreshStrategy;
         this.uow = uow;
         this.clock = clock;
-        this.refreshTokenTtl = refreshTokenTtl;
+        this.refreshTokenTtl = refreshTokenTtl.value();
         // One-time ~50-100ms cost at startup; the value lives for the
         // process lifetime.
         this.decoyHash = hasher.hash(Password.of("decoy-for-timing-safety-only"));

@@ -2,6 +2,7 @@ package myfluxo.bootstrap;
 
 import io.avaje.inject.BeanScope;
 import myfluxo.adapter.http.HttpServer;
+import myfluxo.adapter.http.auth.AuthRoutes;
 import myfluxo.adapter.http.users.UserRoutes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,10 +28,11 @@ public final class Application {
     public static void main(String[] args) throws InterruptedException {
         try (BeanScope scope = BeanScope.builder().build()) {
 
-            var routes = scope.get(UserRoutes.class);
+            var userRoutes = scope.get(UserRoutes.class);
+            var authRoutes = scope.get(AuthRoutes.class);
             var port = parsePort(System.getenv("MYFLUXO_HTTP_PORT"), 8080);
 
-            try (var server = HttpServer.start(port, routes)) {
+            try (var server = HttpServer.start(port, userRoutes, authRoutes)) {
                 LOG.info("listening on http://localhost:{}", server.port());
                 var latch = new CountDownLatch(1);
                 Runtime.getRuntime().addShutdownHook(new Thread(latch::countDown));

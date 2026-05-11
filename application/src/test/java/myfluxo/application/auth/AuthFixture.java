@@ -43,18 +43,18 @@ final class AuthFixture {
     final Register register = new Register(
         users, credentials, refreshTokens,
         hasher, tokenIssuer, refreshStrategy, events,
-        uow, clock, REFRESH_TTL
+        uow, clock, RefreshTokenTtl.of(REFRESH_TTL)
     );
 
     final Login login = new Login(
         users, credentials, refreshTokens,
         hasher, tokenIssuer, refreshStrategy,
-        uow, clock, REFRESH_TTL
+        uow, clock, RefreshTokenTtl.of(REFRESH_TTL)
     );
 
     final RefreshSession refreshSession = new RefreshSession(
         refreshTokens, users, refreshStrategy, tokenIssuer,
-        uow, clock, REFRESH_TTL
+        uow, clock, RefreshTokenTtl.of(REFRESH_TTL)
     );
 
     final Logout logout = new Logout(

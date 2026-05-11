@@ -1,6 +1,5 @@
 package myfluxo.adapter.auth;
 
-import jakarta.inject.Singleton;
 import myfluxo.domain.auth.RefreshTokenStrategy;
 import myfluxo.domain.auth.model.TokenHash;
 
@@ -32,7 +31,6 @@ import java.util.Objects;
  * negligible (microseconds) for the request frequencies refresh tokens
  * see.
  */
-@Singleton
 public final class HmacRefreshTokenStrategy implements RefreshTokenStrategy {
 
     private static final String HMAC_ALGORITHM = "HmacSHA256";
