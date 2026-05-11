@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cx.myfluxo</groupId>
+        <artifactId>myfluxo-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>myfluxo-adapter-http</artifactId>
+    <packaging>jar</packaging>
+
+    <description>
+        HTTP adapter for myfluxo using Helidon 4 SE (Níma). Built around
+        Java's virtual threads natively — every request runs on its own
+        virtual thread, no reactive pipeline, no flag to flip. JSON via
+        Jackson. Translates Result&lt;T, DomainError&gt; into HTTP responses
+        through exhaustive pattern matching.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>cx.myfluxo</groupId>
+            <artifactId>myfluxo-domain</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cx.myfluxo</groupId>
+            <artifactId>myfluxo-application</artifactId>
+        </dependency>
+
+        <!-- Helidon Níma WebServer -->
+        <dependency>
+            <groupId>io.helidon.webserver</groupId>
+            <artifactId>helidon-webserver</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.helidon.http.media</groupId>
+            <artifactId>helidon-http-media-jackson</artifactId>
+        </dependency>
+
+        <!-- Jackson modules for Java time types and records -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.avaje</groupId>
+            <artifactId>avaje-inject</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.avaje</groupId>
+            <artifactId>avaje-inject-generator</artifactId>
+        </dependency>
+
+        <!-- Tests -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

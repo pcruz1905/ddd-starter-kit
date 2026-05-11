@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cx.myfluxo</groupId>
+        <artifactId>myfluxo-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>myfluxo-bootstrap</artifactId>
+    <packaging>jar</packaging>
+
+    <description>
+        Composition root. The ONE place where adapter implementations are
+        picked and wired into use cases. Starts the HTTP server.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>cx.myfluxo</groupId>
+            <artifactId>myfluxo-application</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cx.myfluxo</groupId>
+            <artifactId>myfluxo-adapter-persistence-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cx.myfluxo</groupId>
+            <artifactId>myfluxo-adapter-http</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.avaje</groupId>
+            <artifactId>avaje-inject</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.avaje</groupId>
+            <artifactId>avaje-inject-generator</artifactId>
+        </dependency>
+
+        <!--
+          Architecture-test infrastructure. The bootstrap module is the
+          natural home for ArchUnit rules — it already depends on every
+          production module, so `ClassFileImporter` can load the full
+          codebase from one place.
+        -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>myfluxo.bootstrap.Application</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
