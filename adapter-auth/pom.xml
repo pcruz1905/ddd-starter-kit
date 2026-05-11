@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cx.myfluxo</groupId>
+        <artifactId>myfluxo-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>myfluxo-adapter-auth</artifactId>
+    <packaging>jar</packaging>
+
+    <description>
+        Auth adapter for myfluxo. Implements the auth ports declared in
+        the domain layer: Argon2id password hashing (Password4j), HMAC
+        access-token signing and refresh-token generation. Kept
+        separate from persistence/http so auth primitives can evolve
+        independently of storage and transport concerns.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>cx.myfluxo</groupId>
+            <artifactId>myfluxo-domain</artifactId>
+        </dependency>
+
+        <!-- Argon2id password hashing — OWASP-recommended default. -->
+        <dependency>
+            <groupId>com.password4j</groupId>
+            <artifactId>password4j</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.avaje</groupId>
+            <artifactId>avaje-inject</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.avaje</groupId>
+            <artifactId>avaje-inject-generator</artifactId>
+        </dependency>
+
+        <!-- Tests -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

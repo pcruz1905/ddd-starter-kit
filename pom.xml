@@ -18,6 +18,7 @@
         <module>application</module>
         <module>adapter-persistence-jdbc</module>
         <module>adapter-http</module>
+        <module>adapter-auth</module>
         <module>bootstrap</module>
     </modules>
 
@@ -54,6 +55,13 @@
         <!-- DI (compile-time, no reflection) -->
         <avaje-inject.version>11.4</avaje-inject.version>
 
+        <!--
+          Auth stack.
+          - Password4j: Argon2id password hashing (OWASP-recommended default).
+          - Helidon Security JWT: RFC 7519 JWT signing/verification.
+        -->
+        <password4j.version>1.8.2</password4j.version>
+
         <!-- Plugins -->
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
@@ -88,6 +96,18 @@
                 <groupId>cx.myfluxo</groupId>
                 <artifactId>myfluxo-adapter-http</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>cx.myfluxo</groupId>
+                <artifactId>myfluxo-adapter-auth</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- Password4j — Argon2id password hashing -->
+            <dependency>
+                <groupId>com.password4j</groupId>
+                <artifactId>password4j</artifactId>
+                <version>${password4j.version}</version>
             </dependency>
 
             <!-- Helidon BOM (Níma virtual-thread native) -->
