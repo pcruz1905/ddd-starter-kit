@@ -61,6 +61,8 @@
           - Helidon Security JWT: RFC 7519 JWT signing/verification.
         -->
         <password4j.version>1.8.2</password4j.version>
+        <!-- jjwt: lightweight JWT for HS256-signed access tokens. -->
+        <jjwt.version>0.12.6</jjwt.version>
 
         <!-- Plugins -->
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
@@ -108,6 +110,25 @@
                 <groupId>com.password4j</groupId>
                 <artifactId>password4j</artifactId>
                 <version>${password4j.version}</version>
+            </dependency>
+
+            <!-- jjwt — JWT signing/parsing -->
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jjwt.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jjwt.version}</version>
+                <scope>runtime</scope>
             </dependency>
 
             <!-- Helidon BOM (Níma virtual-thread native) -->
