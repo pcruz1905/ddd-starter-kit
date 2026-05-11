@@ -1,11 +1,8 @@
-# myfluxo
+# java ddd starter-kit
 
 Java 25 LTS DDD starter kit. Ports & adapters, sealed-type domain errors,
 transactional outbox, HTTP-layer idempotency, audit-via-outbox.
 
-Built for an e-commerce platform (Saleor competitor) — but the bones
-are generic: any DDD app where you want a clean domain, real Postgres,
-and zero framework magic.
 
 ---
 
@@ -225,13 +222,6 @@ behavior methods. The use case drains them with
 `aggregate.pullEvents()` **inside** the UoW and hands them to the
 `DomainEventPublisher` — so the event row and the aggregate row
 commit atomically.
-
----
-
-## What's next
-
-See [`docs/DDD_GAPS.md`](docs/DDD_GAPS.md) for the roadmap of what's in,
-what's missing, and what's deliberately excluded.
 
 ---
 
