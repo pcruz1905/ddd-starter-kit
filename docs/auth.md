@@ -165,6 +165,36 @@ This forms a chain: `RT-1 → RT-2 → RT-3 → ...`, all sharing the same `fami
 
 The reason for rotation isn't "freshness". It's so the server can **detect token theft**.
 
+```mermaid
+sequenceDiagram
+    autonumber
+    participant L as Legit client
+    participant A as Attacker
+    participant S as Server
+    participant DB as refresh_tokens
+
+    Note over L,A: Attacker has stolen RT-1.<br/>Both parties hold the same token.
+
+    L->>S: POST /refresh (RT-1)
+    S->>DB: lookup RT-1
+    DB-->>S: active, not rotated
+    S->>DB: rotate RT-1 → RT-2 (same family)
+    S-->>L: 200 { refreshToken: RT-2 }
+
+    A->>S: POST /refresh (RT-1)  — replay
+    S->>DB: lookup RT-1
+    DB-->>S: revoked, replaced_by = RT-2 (rotated!)
+    S->>DB: revokeFamily(family_of_RT_1)
+    S-->>A: 401 refresh_token_reuse_detected
+
+    Note over L,S: RT-2 is now also dead.<br/>Legit user must re-authenticate too —<br/>safer than guessing who the attacker is.
+
+    L->>S: POST /refresh (RT-2)
+    S->>DB: lookup RT-2
+    DB-->>S: revoked (family was revoked)
+    S-->>L: 401 invalid_refresh_token
+```
+
 Imagine an attacker steals RT-1. Two timelines are possible:
 
 **Timeline A — legit user goes first:**

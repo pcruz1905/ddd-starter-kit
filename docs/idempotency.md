@@ -43,6 +43,36 @@ public void run(ServerRequest req, ServerResponse res,
 | **Key present, cache hit, same body hash** | **Replay** stored bytes verbatim. Add `X-Idempotent-Replay: true` header. |
 | **Key present, cache hit, different body hash** | `422 Unprocessable Entity` — key reuse with a different payload is a client bug. |
 
+```mermaid
+flowchart TD
+    start([POST request])
+    hasKey{Idempotency-Key<br/>header present?}
+    lookup[Look up<br/>cache key]
+    cacheHit{Cache hit?}
+    hashMatch{Same request<br/>body hash?}
+    run[Run handler]
+    store[Store status + body + body-hash<br/>in cache]
+    sendNormal[200/201 Send response]
+    replay[Replay cached bytes<br/>+ X-Idempotent-Replay: true]
+    conflict[422 Unprocessable Entity<br/>IDEMPOTENCY_KEY_REUSED_<br/>WITH_DIFFERENT_BODY]
+
+    start --> hasKey
+    hasKey -- no --> run --> sendNormal
+    hasKey -- yes --> lookup --> cacheHit
+    cacheHit -- no --> run
+    run -.cache miss path.-> store --> sendNormal
+    cacheHit -- yes --> hashMatch
+    hashMatch -- yes --> replay
+    hashMatch -- no --> conflict
+
+    classDef ok fill:#dcfce7,stroke:#15803d,color:#14532d
+    classDef bad fill:#fee2e2,stroke:#b91c1c,color:#7f1d1d
+    classDef neutral fill:#e0e7ff,stroke:#4338ca,color:#312e81
+    class sendNormal,replay ok
+    class conflict bad
+    class run,store,lookup neutral
+```
+
 ---
 
 ## Why hash the request body too

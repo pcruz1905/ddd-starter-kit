@@ -9,20 +9,48 @@
 
 ## The model
 
+```mermaid
+flowchart LR
+    subgraph perms[Permission catalog]
+        p1[users:read]
+        p2[users:write]
+        p3[users:delete]
+    end
+
+    subgraph roles[Roles - sealed hierarchy]
+        admin[Admin]
+        member[Member]
+        viewer[Viewer]
+    end
+
+    user[User<br/>has 1 role]
+
+    user --> admin
+    user --> member
+    user --> viewer
+
+    admin --> p1
+    admin --> p2
+    admin --> p3
+    member --> p1
+    member --> p2
+    viewer --> p1
+
+    classDef permission fill:#fef3c7,stroke:#b45309,color:#78350f
+    classDef role fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
+    classDef u fill:#dcfce7,stroke:#15803d,color:#14532d
+    class p1,p2,p3 permission
+    class admin,member,viewer role
+    class user u
 ```
-Permission ─── value object ────  (resource, action)
-                                       │
-                                       │  belongs-to-set
-                                       ▼
-   Role ─── sealed interface ──── { Admin, Member, Viewer }
-                                       │
-                                       │  carried in
-                                       ▼
-                              access-token claim "role"
-                                       │
-                                       │  enforced at boundary
-                                       ▼
-            JwtBearerAuth.requirePermission(req, Permission.USERS_DELETE)
+
+The pipeline at the HTTP boundary:
+
+```
+access-token claim "role"  →  JwtBearerAuth.requirePermission(req, Permission.USERS_DELETE)
+                              ├─ no token / bad token  → 401 Unauthenticated
+                              ├─ valid token, role lacks perm → 403 Forbidden
+                              └─ valid token, role holds perm → CurrentUser, proceed
 ```
 
 ---

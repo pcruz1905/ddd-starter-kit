@@ -32,6 +32,48 @@
 
 `adapter-*` modules **do not depend on each other** — composition is bootstrap's job. The one documented exception is `adapter-persistence-jdbc` depending on `adapter-http` to implement the `IdempotencyCache` port. (The port lives where it's used, the impl lives where the storage technology lives.)
 
+### Dependency graph
+
+```mermaid
+flowchart TB
+    bootstrap[bootstrap]
+    adapterHttp[adapter-http]
+    adapterAuth[adapter-auth]
+    adapterJdbc[adapter-persistence-jdbc]
+    application[application]
+    domain[domain]
+    kernel[kernel]
+
+    bootstrap --> adapterHttp
+    bootstrap --> adapterAuth
+    bootstrap --> adapterJdbc
+    bootstrap --> application
+
+    adapterHttp --> application
+    adapterHttp --> domain
+    adapterAuth --> domain
+    adapterJdbc --> application
+    adapterJdbc -.->|implements IdempotencyCache port| adapterHttp
+
+    application --> domain
+    application --> kernel
+    domain --> kernel
+
+    classDef ring1 fill:#fef3c7,stroke:#b45309,color:#78350f
+    classDef ring2 fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
+    classDef ring3 fill:#dcfce7,stroke:#15803d,color:#14532d
+    classDef ring4 fill:#fce7f3,stroke:#be185d,color:#831843
+    classDef ring5 fill:#e9d5ff,stroke:#7e22ce,color:#581c87
+
+    class bootstrap ring1
+    class adapterHttp,adapterAuth,adapterJdbc ring2
+    class application ring3
+    class domain ring4
+    class kernel ring5
+```
+
+Solid arrow = compile-time dependency. Dashed arrow = the one documented sibling-adapter coupling (port lives in `adapter-http`, impl in `adapter-persistence-jdbc`).
+
 ## Ports & adapters
 
 Every external integration is a Java interface owned by `domain` or `application`, called a **port**. Adapters in `adapter-*` modules implement them.

@@ -31,24 +31,36 @@ The outbox pattern sidesteps it.
 
 > "Don't publish the event. Write it to a table in the same transaction. A separate process publishes it later."
 
-```
-┌─────────────────── one Postgres transaction ───────────────────┐
-│                                                                │
-│  INSERT INTO users (...) VALUES (...)                          │
-│  INSERT INTO outbox_events (id, event_type, payload, ...)      │
-│                                                                │
-│  COMMIT  ←─── both rows are either there, or both aren't        │
-│                                                                │
-└────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-                ┌─── separate process / job ───┐
-                │  SELECT ... FROM outbox_events│
-                │   WHERE dispatched = FALSE    │
-                │   FOR UPDATE SKIP LOCKED      │
-                │  → forward to sink            │
-                │  → mark dispatched            │
-                └───────────────────────────────┘
+```mermaid
+sequenceDiagram
+    autonumber
+    participant UC as Use case
+    participant DB as Postgres
+    participant D as Dispatcher (separate process)
+    participant K as Sink (Kafka / webhook / bus)
+
+    rect rgb(238, 246, 255)
+        Note over UC,DB: One atomic transaction
+        UC->>DB: BEGIN
+        UC->>DB: INSERT INTO users (...)
+        UC->>DB: INSERT INTO outbox_events (event_type, payload, dispatched=FALSE)
+        UC->>DB: COMMIT
+    end
+
+    Note over UC,K: ── time passes ──
+
+    loop every tick (cron / scheduled / vthread loop)
+        D->>DB: SELECT ... FROM outbox_events<br/>WHERE dispatched=FALSE<br/>FOR UPDATE SKIP LOCKED
+        DB-->>D: pending batch
+        D->>K: forward(event_type, payload)
+        alt sink succeeds
+            K-->>D: ok
+            D->>DB: UPDATE dispatched=TRUE, attempt_count+=1
+        else sink throws
+            K-->>D: error
+            D->>DB: UPDATE attempt_count+=1 (row stays pending)
+        end
+    end
 ```
 
 Properties:
