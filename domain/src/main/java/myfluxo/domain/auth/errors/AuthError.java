@@ -1,6 +1,7 @@
 package myfluxo.domain.auth.errors;
 
 import myfluxo.domain.auth.model.Permission;
+import myfluxo.domain.shared.model.Email;
 import myfluxo.domain.users.model.UserId;
 import myfluxo.kernel.result.DomainError;
 
@@ -40,4 +41,10 @@ public sealed interface AuthError extends DomainError {
 
     /** Old password doesn't match — for ChangePassword. */
     record OldPasswordMismatch() implements AuthError {}
+
+    /** Email already registered — for Register. */
+    record EmailAlreadyTaken(Email email) implements AuthError {}
+
+    /** Email failed format validation — for Register. */
+    record InvalidEmail(String input, String reason) implements AuthError {}
 }
