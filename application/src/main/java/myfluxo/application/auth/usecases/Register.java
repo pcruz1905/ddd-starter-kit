@@ -110,8 +110,7 @@ public final class Register implements UseCase<RegisterCommand, AuthSession, Aut
             credentials.save(creds);
 
             // Issue and persist initial refresh token + access token.
-            Role role = Role.Member.INSTANCE;  // Phase 3 will source from User.role
-            var session = issueSession(user.id(), role, now);
+            var session = issueSession(user.id(), user.role(), now);
 
             // Publish domain events INSIDE the UoW so outbox writes
             // commit atomically with aggregate saves.

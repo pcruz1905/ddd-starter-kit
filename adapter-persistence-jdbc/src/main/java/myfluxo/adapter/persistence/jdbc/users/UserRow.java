@@ -1,6 +1,7 @@
 package myfluxo.adapter.persistence.jdbc.users;
 
 import myfluxo.adapter.persistence.jdbc.Table;
+import myfluxo.domain.auth.model.Role;
 import myfluxo.domain.shared.model.Email;
 import myfluxo.domain.users.User;
 import myfluxo.domain.users.model.UserId;
@@ -28,6 +29,7 @@ public record UserRow(
     String statusType,
     Instant statusSince,
     String statusDeactivationReason,
+    String role,
     Instant createdAt,
     long version
 ) {
@@ -46,6 +48,7 @@ public record UserRow(
             statusType(status),
             statusSince(status),
             statusReason(status),
+            user.role().name(),
             user.createdAt(),
             version
         );
@@ -56,6 +59,7 @@ public record UserRow(
             new UserId(id),
             new Email(email),
             decodeStatus(),
+            Role.fromName(role),
             createdAt,
             version
         );

@@ -1,5 +1,7 @@
 package myfluxo.adapter.persistence.jdbc;
 
+import myfluxo.adapter.persistence.jdbc.auth.CredentialsRow;
+import myfluxo.adapter.persistence.jdbc.auth.RefreshTokenRow;
 import myfluxo.adapter.persistence.jdbc.process.ProcessInstanceRow;
 import myfluxo.adapter.persistence.jdbc.users.UserRow;
 import org.jdbi.v3.core.Jdbi;
@@ -33,6 +35,8 @@ public final class JdbiSetup {
 
         jdbi.registerRowMapper(UserRow.TABLE.rowMapperFactory());
         jdbi.registerRowMapper(ProcessInstanceRow.TABLE.rowMapperFactory());
+        jdbi.registerRowMapper(CredentialsRow.TABLE.rowMapperFactory());
+        jdbi.registerRowMapper(RefreshTokenRow.TABLE.rowMapperFactory());
 
         return jdbi;
     }

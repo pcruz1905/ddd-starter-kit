@@ -107,16 +107,19 @@ public final class Table<R extends Record> {
         }
         return "UPDATE " + name + " SET "
             + RecordSql.updateSet(rowType, except.toArray(String[]::new))
-            + " WHERE id = :id AND version = :expectedVersion";
+            + " WHERE " + col("id") + " = :id"
+            + " AND " + col("version") + " = :expectedVersion";
     }
 
     /**
-     * {@code DELETE FROM <name> WHERE id = :id}. Requires the row
-     * record to have an {@code id} component.
+     * {@code DELETE FROM <name> WHERE <id-column> = :id}. Requires the
+     * row record to have an {@code id} component; honours
+     * {@link org.jdbi.v3.core.mapper.reflect.ColumnName} on it (so a
+     * row that maps {@code id} to {@code user_id} works correctly).
      */
     public String deleteById() {
         requireComponent("id", "deleteById");
-        return "DELETE FROM " + name + " WHERE id = :id";
+        return "DELETE FROM " + name + " WHERE " + col("id") + " = :id";
     }
 
     /**

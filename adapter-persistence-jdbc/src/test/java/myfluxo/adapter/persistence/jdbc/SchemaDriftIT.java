@@ -1,5 +1,7 @@
 package myfluxo.adapter.persistence.jdbc;
 
+import myfluxo.adapter.persistence.jdbc.auth.CredentialsRow;
+import myfluxo.adapter.persistence.jdbc.auth.RefreshTokenRow;
 import myfluxo.adapter.persistence.jdbc.process.ProcessInstanceRow;
 import myfluxo.adapter.persistence.jdbc.users.UserRow;
 import org.jdbi.v3.core.Jdbi;
@@ -42,7 +44,9 @@ class SchemaDriftIT {
      */
     private static final List<Table<?>> REGISTERED_TABLES = List.of(
         UserRow.TABLE,
-        ProcessInstanceRow.TABLE
+        ProcessInstanceRow.TABLE,
+        CredentialsRow.TABLE,
+        RefreshTokenRow.TABLE
     );
 
     /**

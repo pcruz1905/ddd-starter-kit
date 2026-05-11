@@ -53,7 +53,7 @@ final class AuthFixture {
     );
 
     final RefreshSession refreshSession = new RefreshSession(
-        refreshTokens, refreshStrategy, tokenIssuer,
+        refreshTokens, users, refreshStrategy, tokenIssuer,
         uow, clock, REFRESH_TTL
     );
 

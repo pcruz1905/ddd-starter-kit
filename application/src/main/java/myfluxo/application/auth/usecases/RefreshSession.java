@@ -10,7 +10,8 @@ import myfluxo.domain.auth.RefreshTokenRepository;
 import myfluxo.domain.auth.RefreshTokenStrategy;
 import myfluxo.domain.auth.TokenIssuer;
 import myfluxo.domain.auth.errors.AuthError;
-import myfluxo.domain.auth.model.Role;
+import myfluxo.domain.users.User;
+import myfluxo.domain.users.UserRepository;
 import myfluxo.kernel.result.Result;
 
 import java.time.Clock;
@@ -34,11 +35,19 @@ import java.util.Optional;
  * (browser auto-refresh, etc.). We can't distinguish, so we treat it
  * as theft: revoke the entire family. Both parties are forced to
  * log in again. This is the canonical refresh-token-rotation defence.
+ *
+ * <h2>Role pickup</h2>
+ * Re-reads the user's current role on every refresh. If an admin demotes
+ * a user from ADMIN to MEMBER, the demoted user's NEXT refresh issues
+ * a MEMBER-scoped access token. The previously issued (still-valid)
+ * access token retains its old role until expiry — short TTL bounds
+ * the exposure.
  */
 @Singleton
 public final class RefreshSession implements UseCase<RefreshSessionCommand, AuthSession, AuthError> {
 
     private final RefreshTokenRepository refreshTokens;
+    private final UserRepository users;
     private final RefreshTokenStrategy refreshStrategy;
     private final TokenIssuer tokenIssuer;
     private final UnitOfWork uow;
@@ -47,6 +56,7 @@ public final class RefreshSession implements UseCase<RefreshSessionCommand, Auth
 
     public RefreshSession(
         RefreshTokenRepository refreshTokens,
+        UserRepository users,
         RefreshTokenStrategy refreshStrategy,
         TokenIssuer tokenIssuer,
         UnitOfWork uow,
@@ -54,6 +64,7 @@ public final class RefreshSession implements UseCase<RefreshSessionCommand, Auth
         Duration refreshTokenTtl
     ) {
         this.refreshTokens = refreshTokens;
+        this.users = users;
         this.refreshStrategy = refreshStrategy;
         this.tokenIssuer = tokenIssuer;
         this.uow = uow;
@@ -91,6 +102,14 @@ public final class RefreshSession implements UseCase<RefreshSessionCommand, Auth
                 return Result.err(new AuthError.InvalidRefreshToken());
             }
 
+            // User must still exist. If the account was hard-deleted
+            // between issuance and refresh, the token is dead too.
+            Optional<User> userOpt = users.findById(token.userId());
+            if (userOpt.isEmpty()) {
+                return Result.err(new AuthError.InvalidRefreshToken());
+            }
+            User user = userOpt.get();
+
             // Rotate.
             var newPlaintext = refreshStrategy.generatePlaintext();
             var newHash = refreshStrategy.hash(newPlaintext);
@@ -102,11 +121,10 @@ public final class RefreshSession implements UseCase<RefreshSessionCommand, Auth
             refreshTokens.save(token);
             refreshTokens.save(successor);
 
-            Role role = Role.Member.INSTANCE;  // Phase 3 will source from User.role
-            var accessToken = tokenIssuer.issue(token.userId(), role, now);
+            var accessToken = tokenIssuer.issue(user.id(), user.role(), now);
 
             return Result.ok(new AuthSession(
-                token.userId(), role, accessToken, newPlaintext, newExpiry
+                user.id(), user.role(), accessToken, newPlaintext, newExpiry
             ));
         });
     }
