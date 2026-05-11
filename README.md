@@ -1,230 +1,221 @@
-# java ddd starter-kit
+# DDD Starter Kit — Java 25 backend
 
-Java 25 LTS DDD starter kit. Ports & adapters, sealed-type domain errors,
-transactional outbox, HTTP-layer idempotency, audit-via-outbox.
+Production-grade backend starter kit for greenfield projects. Domain-Driven Design,
+ports & adapters, sealed-type domain errors, transactional outbox, HTTP-layer
+idempotency, full auth stack (Argon2id + JWT + rotating refresh tokens), Bucket4j
+rate limiting, structured audit logging, schema-drift CI gate.
 
+**Built to be forked.** Replace the example `User` aggregate with your own; the
+rest of the kit — auth, persistence wiring, HTTP routes, CI — comes for free.
 
 ---
 
 ## Stack
 
-| Concern | Choice |
-| --- | --- |
-| Language | Java 25 LTS (records, sealed types, pattern matching, unnamed patterns, scoped values) |
-| HTTP server | Helidon 4 SE (Níma, virtual-thread native) |
-| Persistence | JDBI 3 + Postgres (no ORM, no codegen, no bytecode enhancement) |
-| Migrations | Flyway 11 |
-| Pool | HikariCP |
-| DI | Avaje Inject (compile-time, no reflection) |
-| Tests | JUnit 5 + AssertJ + Testcontainers Postgres |
-| Build | Maven 3.9+ |
+| Concern | Choice | Why |
+| --- | --- | --- |
+| Language | Java 25 LTS | Records, sealed types, pattern matching, unnamed patterns, scoped values |
+| HTTP server | [Helidon 4 SE](https://helidon.io/) (Níma) | Virtual-thread-native, lean, no Spring |
+| Persistence | [JDBI 3](https://jdbi.org/) + Postgres | Declarative SQL, no codegen, no bytecode magic |
+| Migrations | [Flyway 11](https://flywaydb.org/) | Versioned, drift-checked in CI |
+| Pool | HikariCP | Standard |
+| DI | [Avaje Inject](https://avaje.io/inject/) | Compile-time, no reflection |
+| Password hashing | [Password4j](https://password4j.com/) Argon2id | OWASP-recommended default |
+| JWT | [jjwt 0.12](https://github.com/jwtk/jjwt) | HS256 access tokens |
+| Rate limiting | [Bucket4j](https://github.com/bucket4j/bucket4j) | Token-bucket per IP |
+| Tests | JUnit 5 + AssertJ + Testcontainers Postgres | Real DB in CI |
+| Build | Maven 3.9+ | Multi-module reactor |
+| CI | GitHub Actions | Build + drift check + E2E |
 
-**No Spring. No Hibernate. No JOOQ.** Reasons documented in `docs/DDD_GAPS.md`.
+**No Spring. No Hibernate. No JOOQ codegen.**
+
+---
+
+## What you get out of the box
+
+- ✅ DDD aggregates with optimistic concurrency
+- ✅ Sealed-type domain errors (`Result<T, E>`, exhaustive at every call site)
+- ✅ Transactional outbox + JSON-archived hard delete
+- ✅ Functional Unit of Work (Java 25 `ScopedValue`-based, no ThreadLocal)
+- ✅ Process Manager / Saga skeleton
+- ✅ Background job runner (`FOR UPDATE SKIP LOCKED`)
+- ✅ HTTP-layer idempotency middleware (Stripe / IETF style)
+- ✅ Composable dynamic-query DSL (`Condition` + `Predicates`)
+- ✅ Schema drift check in CI (records vs migrations)
+- ✅ ArchUnit layering rules enforced in CI
+- ✅ **Auth stack**: register / login / refresh-with-rotation / logout / change-password
+- ✅ **RBAC**: `Permission` × `Role` (`Admin | Member | Viewer`), HTTP-level `requirePermission`
+- ✅ **Brute-force protection**: per-IP rate limiting on `/login` and `/register`
+- ✅ **Audit log**: dedicated SLF4J channel (`myfluxo.audit.auth`) for every auth event
+- ✅ **Theft detection**: refresh-token family revocation on replayed/rotated tokens
 
 ---
 
 ## Module map
 
 ```
-myfluxo/
+.
 ├── kernel/                       DDD building blocks (no domain concepts)
-│   ├── aggregate/                AggregateRoot, AbstractAggregateRoot, ArchivedSnapshot,
-│   │                             EntityArchive, AggregateRestorer, OptimisticConcurrencyException
-│   ├── event/                    DomainEvent, DomainEventPublisher
-│   ├── result/                   Result<T,E>, DomainError
-│   ├── id/                       Identifier<V>, UuidV7
-│   ├── money/                    Money, CurrencyMismatchException
-│   ├── idempotency/              IdempotencyKey
-│   ├── pagination/               Page, PageRequest, SortDirection
-│   ├── ddd/                      ValueObject, DomainService, Specification (markers)
-│   └── util/                     ParallelFetch
 ├── domain/                       aggregates, value objects, sealed events/errors
-│   ├── shared/model/             cross-feature VOs (Email, Money usage)
-│   └── users/                    User aggregate, UserRepository port
-├── application/                  use cases (orchestration only, no business logic)
-│   ├── UnitOfWork.java
-│   └── users/usecases/
-├── adapter-http/                 Helidon HTTP routes + idempotency middleware
-│   ├── HttpServer, ErrorHandlers, ErrorResponse, HttpJsonMapper
-│   ├── idempotency/              IdempotencyCache port + IdempotencyMiddleware
-│   └── users/                    UserRoutes, RegisterUserRequest, UserDto
-├── adapter-persistence-jdbc/     the ONE persistence backend (Postgres via JDBI)
-│   ├── JdbiSetup, JdbcDataSourceFactory, TransactionalHandle, JdbiUnitOfWork
-│   ├── JdbiEntityArchive, JdbiIdempotencyCache, JsonMapper
-│   ├── users/                    JdbiUserRepository, UserRowMapper, UserStatusMixin,
-│   │                             UserRestorer
-│   ├── outbox/                   JdbiOutboxDomainEventPublisher, JdbiOutboxDispatcher,
-│   │                             EntityArchiveSink
-│   └── src/main/resources/db/migration/  Flyway V1..V6
-├── bootstrap/                    composition root — AppFactory, Application
-└── docs/                         DDD_GAPS.md (roadmap)
+│   ├── users/                    User aggregate
+│   └── auth/                     Credentials + RefreshToken aggregates, Role, Permission
+├── application/                  use cases (orchestration only)
+│   ├── users/usecases/           RegisterUser
+│   └── auth/usecases/            Register, Login, RefreshSession, Logout, ChangePassword
+├── adapter-persistence-jdbc/     JDBI + Postgres impls
+│   ├── auth/                     Credentials + RefreshToken repos
+│   ├── process/                  Process-instance repo
+│   ├── users/                    User repo
+│   └── outbox/                   Outbox dispatcher + sinks
+├── adapter-http/                 Helidon routes + DTOs
+│   ├── auth/                     AuthRoutes, JwtBearerAuth, AuthRateLimiter
+│   └── users/                    UserRoutes
+├── adapter-auth/                 Argon2 hasher, JWT issuer, HMAC refresh strategy
+└── bootstrap/                    Composition root (AppFactory + Application main)
 ```
 
 ---
 
-## Architecture
-
-Standard ports-and-adapters / hexagonal:
-
-- **`domain/`** depends on `kernel/` only. No imports of any adapter,
-  framework, or persistence concept. Aggregates own their invariants.
-- **`application/`** depends on `domain/`. Orchestrates use cases via the
-  `UnitOfWork` port and domain repositories. Returns `Result<T, E>` —
-  errors are values, not thrown.
-- **`adapter-*`** modules implement the ports. The HTTP adapter speaks
-  Helidon; the JDBI adapter speaks Postgres. Neither knows the other.
-- **`bootstrap/`** is the ONLY place where adapters are picked and
-  wired. Everything else is `@Singleton` + constructor injection via
-  Avaje Inject.
-
----
-
-## Getting started
-
-Prerequisites:
-- JDK 25
-- Maven 3.9+
-- Docker (only at test time — Testcontainers spins up Postgres)
-
-### Build
+## Quick start
 
 ```bash
-mvn clean install                # compile + unit + integration tests
-mvn clean install -DskipTests    # just compile/package
-```
+# 1. Set required env vars (generate secrets with: openssl rand -hex 32)
+export MYFLUXO_JDBC_URL='jdbc:postgresql://localhost:5432/myfluxo'
+export MYFLUXO_DB_USER='myfluxo'
+export MYFLUXO_DB_PASSWORD='...'
+export MYFLUXO_JWT_SECRET=$(openssl rand -hex 32)
+export MYFLUXO_REFRESH_TOKEN_SECRET=$(openssl rand -hex 32)
 
-### Run locally
+# 2. Build + run all tests (needs Docker for Testcontainers)
+mvn verify
 
-The bootstrap wires the JDBI adapter unconditionally — there is no
-in-memory fallback. Provide a Postgres:
-
-```bash
-export MYFLUXO_JDBC_URL=jdbc:postgresql://localhost:5432/myfluxo
-export MYFLUXO_DB_USER=postgres
-export MYFLUXO_DB_PASSWORD=postgres
-export MYFLUXO_HTTP_PORT=8080       # default
-
+# 3. Run the app
 mvn -pl bootstrap exec:java -Dexec.mainClass=myfluxo.bootstrap.Application
 ```
 
-Flyway migrations run at startup. The HTTP server starts on
-`http://localhost:8080`.
+App listens on `MYFLUXO_HTTP_PORT` (default 8080).
 
-### Tests
+---
 
-Integration tests boot a Testcontainers Postgres (one container per
-JVM). To make the second `mvn verify` and beyond **skip** the ~5s
-container boot, enable Testcontainers' reuse once:
+## Auth API
 
-```bash
-echo 'testcontainers.reuse.enable=true' >> ~/.testcontainers.properties
+All endpoints under `/v1/auth/*`. JSON bodies. Errors in Stripe-shape
+`{"error": {"code": "...", "message": "..."}}`.
+
+| Method | Path | Auth | Body | Returns |
+| --- | --- | --- | --- | --- |
+| POST | `/v1/auth/register` | — | `{email, password}` | `201` session |
+| POST | `/v1/auth/login` | — | `{email, password}` | `200` session |
+| POST | `/v1/auth/refresh` | — | `{refreshToken}` | `200` rotated session |
+| POST | `/v1/auth/logout` | — | `{refreshToken}` | `204` |
+| POST | `/v1/auth/change-password` | Bearer | `{oldPassword, newPassword}` | `204` |
+| GET | `/v1/auth/me` | Bearer | — | `200 {userId, role}` |
+
+Session shape:
+```json
+{
+  "userId": "uuid",
+  "role": "ADMIN" | "MEMBER" | "VIEWER",
+  "accessToken": "<jwt>",
+  "accessTokenExpiresAt": "iso-instant",
+  "refreshToken": "<opaque>",
+  "refreshTokenExpiresAt": "iso-instant"
+}
 ```
 
-Per-developer flag; CI always gets a fresh container.
+### Production-grade properties
+
+- **Argon2id** password hashing with OWASP-recommended parameters (19 MiB, 2 iter, 1 par)
+- **Timing-attack-safe login**: Argon2 verify runs against a decoy hash even when the user doesn't exist
+- **Refresh token rotation** with family tracking — replayed token after rotation triggers revocation of the entire family (forces re-auth on every device)
+- **HMAC-SHA256 server-side hashing** of refresh tokens (a DB dump alone doesn't yield usable tokens)
+- **JWT signing** with HS256 and configurable issuer
+- **Rate limiting**: 5 login / 15 min and 3 register / hour per IP
+- **Audit log** for every auth event (register, login success/failure, refresh, logout, password change, theft detection) on a dedicated SLF4J channel
 
 ---
 
-## Try the API
+## Configuration (env)
 
-```bash
-# Register a user
-curl -X POST http://localhost:8080/users \
-  -H 'Content-Type: application/json' \
-  -d '{ "email": "alice@example.com" }'
+| Var | Required | Default | Notes |
+| --- | --- | --- | --- |
+| `MYFLUXO_JDBC_URL` | ✅ | — | Postgres JDBC URL |
+| `MYFLUXO_DB_USER` | ✅ | — | |
+| `MYFLUXO_DB_PASSWORD` | ✅ | — | |
+| `MYFLUXO_JWT_SECRET` | ✅ | — | ≥32 bytes (UTF-8); `openssl rand -hex 32` |
+| `MYFLUXO_REFRESH_TOKEN_SECRET` | ✅ | — | ≥32 bytes; distinct from `JWT_SECRET` |
+| `MYFLUXO_JWT_ISSUER` | — | `myfluxo` | `iss` claim on issued JWTs |
+| `MYFLUXO_ACCESS_TOKEN_TTL_MINUTES` | — | `15` | Access JWT lifetime |
+| `MYFLUXO_REFRESH_TOKEN_TTL_DAYS` | — | `7` | Refresh-token lifetime |
+| `MYFLUXO_HTTP_PORT` | — | `8080` | HTTP listen port |
 
-# Same request with an Idempotency-Key — middleware replays the
-# cached response on retry, responds with `X-Idempotent-Replay: true`
-curl -X POST http://localhost:8080/users \
-  -H 'Content-Type: application/json' \
-  -H 'Idempotency-Key: signup-abc-123' \
-  -d '{ "email": "bob@example.com" }'
+---
 
-# Fetch by id
-curl http://localhost:8080/users/<uuid>
+## Architecture cheat sheet
+
+```
+HTTP request
+  └─ Routes (adapter-http)             — parse body, call use case
+       └─ Use case (application)        — uow.inTransaction { ... }, returns Result<T,E>
+            ├─ Domain                    — aggregates enforce invariants, record events
+            └─ Ports (domain)            — UserRepository, CredentialsRepository, ...
+                 └─ Adapters             — JDBI repos, Argon2 hasher, JWT issuer
+                      └─ Postgres        — Flyway-migrated schema
+                           └─ outbox     — dispatcher → archive / sink / Kafka / ...
 ```
 
----
-
-## How to add a new aggregate
-
-Recipe for a new bounded context (e.g. `Order`):
-
-1. **`domain/orders/`** — `Order` aggregate root extending
-   `AbstractAggregateRoot<OrderId>`, sealed `OrderEvent`
-   (`Placed`, `Cancelled`, `Deleted`, …), sealed `OrderError`,
-   port `OrderRepository`.
-2. **`domain/shared/model/`** — drop in any cross-feature value
-   objects (e.g. `Address`, `LineItem`) used by more than one aggregate.
-3. **`application/orders/usecases/`** — use cases (`PlaceOrder`,
-   `CancelOrder`, …). Input: a command record. Output:
-   `Result<DomainType, OrderError>`.
-4. **`adapter-persistence-jdbc/`** — `JdbiOrderRepository`,
-   `OrderRowMapper` (register in `JdbiSetup`), Flyway migration
-   `V7__create_orders.sql`. For sealed status types add an
-   `OrderStatusMixin` (register in `JsonMapper`).
-5. **`adapter-http/orders/`** — `OrderRoutes`, request/response DTOs.
-   Wrap state-changing endpoints in `idempotency.run(req, res, handler)`
-   to inherit Stripe-style idempotency for free.
-
-`bootstrap/AppFactory` picks the new beans up automatically — Avaje
-scans `@Singleton`s at compile time.
+Layering rules enforced by **ArchUnit** in `bootstrap/.../ArchitectureTest`:
+- `domain` has no framework imports
+- `domain` depends only on `kernel`
+- `application` depends only on `kernel` + `domain`
+- `kernel` has no framework imports
+- No adapter depends on another adapter (one documented exception)
 
 ---
 
-## Key patterns
+## Schema drift gate
 
-### Transactional outbox
+`SchemaDriftIT` boots Postgres, runs Flyway, then cross-validates every
+`Table<R>` row record against `information_schema.columns`. If a migration
+renames a column without updating the row record (or vice versa), CI
+fails with a precise diff. GitHub Actions workflow surfaces it as
+**"Schema drift detected"** before any other test runs.
 
-Every aggregate mutation that emits a domain event writes the event
-to `outbox_events` in the same transaction as the aggregate.
-`JdbiOutboxDispatcher` polls the table (`FOR UPDATE SKIP LOCKED`) and
-hands events to a composable sink chain. No "commit but didn't publish"
-window.
+---
 
-### Hard-delete with audit via outbox
+## Why no Spring / Hibernate / JOOQ codegen
 
-When an aggregate needs to be removed entirely (GDPR erasure, expired
-sessions, abandoned drafts), the use case publishes a
-`XxxEvent$Deleted` event carrying a full snapshot and DELETEs the row
-in the same transaction. `EntityArchiveSink` (an outbox consumer)
-writes the snapshot to `entity_archive`. Recovery: read the archive
-snapshot, `restorer.rehydrate(...)`, `repo.restore(user)`.
+| Tool | Why we skip |
+| --- | --- |
+| Spring | Reflection + classpath magic; we use Avaje Inject (compile-time, no reflection) |
+| Hibernate / JPA | ORM impedance mismatch; we use JDBI for declarative SQL |
+| JOOQ codegen | Adds a build-time DB or DDL-parsing step; the small `Table<R>` helper covers the ergonomic gap |
 
-Behavioural "delete" (deactivate, cancel, archive-as-status) stays in
-the domain as state transitions — never as a soft-delete flag.
+The kit's persistence ergonomics: snake_case ↔ camelCase auto-mapping via
+JDBI's `ConstructorMapper`, `@ColumnName` overrides where needed,
+`@JsonbColumn` for Postgres `jsonb`, `Table<R>` derivable SQL strings,
+`col(...)` startup-time column-name validation. ~90% of the type-safety
+of jOOQ codegen at ~10% of the build cost.
 
-### HTTP-layer idempotency (Stripe / IETF RFC)
+---
 
-State-changing endpoints wrap their handler in
-`IdempotencyMiddleware.run(...)`. The middleware reads the
-`Idempotency-Key` header, hashes the request body, and:
+## Adding a new aggregate
 
-- cache hit + same hash → replays the cached `(status, body)` with
-  `X-Idempotent-Replay: true`
-- cache hit + **different** hash → `422 Unprocessable Content`
-- cache miss → runs the handler, captures the response, stores it
+1. New row record under `adapter-persistence-jdbc/.../yourthing/YourRow.java`
+   with `public static final Table<YourRow> TABLE = Table.of("yourthings", YourRow.class);`
+2. Flyway migration creating the `yourthings` table
+3. Domain aggregate extends `AbstractAggregateRoot<YourId>`
+4. Repository port in `domain.yourthing` + `JdbiYourRepository extends JdbiAggregateRepository<...>`
+5. Register `YourRow.TABLE.rowMapperFactory()` in `JdbiSetup`
+6. Add `YourRow.TABLE` to `SchemaDriftIT.REGISTERED_TABLES`
+7. Use case in `application.yourthing.usecases`
+8. HTTP route in `adapter-http.yourthing`
 
-Use cases are unaware of idempotency. Cached data is raw bytes — no
-typed result, no Jackson generic erasure, no per-use-case boilerplate.
-
-### Optimistic concurrency
-
-Every aggregate carries a `version`. `UPDATE` includes
-`WHERE version = :loadedVersion` and bumps to `loadedVersion + 1`.
-Conflict → `OptimisticConcurrencyException`. The single bump rule
-lives in each repository's `save()`; `markPersisted(newVersion)`
-adopts the persisted value into the aggregate's in-memory state.
-
-### Domain events on aggregates
-
-Aggregates `recordEvent(new XxxEvent.Variant(...))` inside their
-behavior methods. The use case drains them with
-`aggregate.pullEvents()` **inside** the UoW and hands them to the
-`DomainEventPublisher` — so the event row and the aggregate row
-commit atomically.
+The first new aggregate takes a few hours (you have to look up the pattern).
+The next takes ~30 minutes.
 
 ---
 
 ## License
 
-MIT.
+MIT. Fork it, ship it.
