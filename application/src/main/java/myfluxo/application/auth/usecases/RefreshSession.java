@@ -12,8 +12,11 @@ import myfluxo.domain.auth.RefreshTokenRepository;
 import myfluxo.domain.auth.RefreshTokenStrategy;
 import myfluxo.domain.auth.TokenIssuer;
 import myfluxo.domain.auth.errors.AuthError;
+import myfluxo.domain.auth.model.RefreshTokenFamilyId;
+import myfluxo.domain.auth.model.TokenHash;
 import myfluxo.domain.users.User;
 import myfluxo.domain.users.UserRepository;
+import myfluxo.domain.users.model.UserId;
 import myfluxo.kernel.result.Result;
 
 import java.time.Clock;
@@ -79,44 +82,61 @@ public final class RefreshSession implements UseCase<RefreshSessionCommand, Auth
 
     @Override
     public Result<AuthSession, AuthError> handle(RefreshSessionCommand cmd) {
-        return uow.inTransaction(() -> {
-            if (cmd.refreshToken() == null || cmd.refreshToken().isBlank()) {
-                return Result.err(new AuthError.InvalidRefreshToken());
+        if (cmd.refreshToken() == null || cmd.refreshToken().isBlank()) {
+            return Result.err(new AuthError.InvalidRefreshToken());
+        }
+
+        TokenHash presentedHash = refreshStrategy.hash(cmd.refreshToken());
+
+        // Step 1 — reuse detection runs in its OWN transaction so the
+        // family-revoke commits independently. If we revoked inside the
+        // same UoW that returns Err for the API caller, the UoW would
+        // roll back the revoke too. Splitting the transactions is the
+        // simplest fix; the cost is one extra DB round-trip on the rare
+        // theft-detection path.
+        var reuseSignal = uow.inTransaction(() -> {
+            var stored = refreshTokens.findByTokenHash(presentedHash);
+            if (stored.isPresent() && stored.get().isRotated()) {
+                refreshTokens.revokeFamily(
+                    stored.get().familyId(), clock.instant());
+                return Result.<Optional<TheftSignal>, AuthError>ok(Optional.of(
+                    new TheftSignal(stored.get().userId(), stored.get().familyId())));
             }
+            return Result.<Optional<TheftSignal>, AuthError>ok(Optional.empty());
+        }).orElseThrow();  // inner always returns Ok
 
-            var presentedHash = refreshStrategy.hash(cmd.refreshToken());
+        if (reuseSignal.isPresent()) {
+            audit.refreshReuseDetected(reuseSignal.get().userId(), reuseSignal.get().familyId());
+            return Result.err(new AuthError.RefreshTokenReuseDetected());
+        }
+
+        // Step 2 — normal rotation in a fresh transaction.
+        return uow.inTransaction(() -> {
             Optional<RefreshToken> stored = refreshTokens.findByTokenHash(presentedHash);
-
             if (stored.isEmpty()) {
                 return Result.err(new AuthError.InvalidRefreshToken());
             }
-
             RefreshToken token = stored.get();
             Instant now = clock.instant();
 
-            // Theft signal: token was already rotated. Revoke the
-            // entire family and refuse this attempt.
+            // Could've been revoked by a concurrent family-revoke
+            // between step 1 and step 2; re-check.
             if (token.isRotated()) {
-                refreshTokens.revokeFamily(token.familyId(), now);
-                audit.refreshReuseDetected(token.userId(), token.familyId());
+                // Race: someone else revoked between our two reads.
+                // Treat as reuse — but the family is already revoked,
+                // so we just report.
                 return Result.err(new AuthError.RefreshTokenReuseDetected());
             }
-
-            // Expired or explicitly revoked — just no good, no family
-            // action needed (it's not a theft signal).
             if (!token.isActive(now)) {
                 return Result.err(new AuthError.InvalidRefreshToken());
             }
 
-            // User must still exist. If the account was hard-deleted
-            // between issuance and refresh, the token is dead too.
             Optional<User> userOpt = users.findById(token.userId());
             if (userOpt.isEmpty()) {
                 return Result.err(new AuthError.InvalidRefreshToken());
             }
             User user = userOpt.get();
 
-            // Rotate.
             var newPlaintext = refreshStrategy.generatePlaintext();
             var newHash = refreshStrategy.hash(newPlaintext);
             var newExpiry = now.plus(refreshTokenTtl);
@@ -136,4 +156,6 @@ public final class RefreshSession implements UseCase<RefreshSessionCommand, Auth
             ));
         });
     }
+
+    private record TheftSignal(UserId userId, RefreshTokenFamilyId familyId) {}
 }

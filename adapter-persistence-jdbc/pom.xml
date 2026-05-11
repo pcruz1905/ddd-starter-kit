@@ -45,6 +45,17 @@
             <groupId>cx.myfluxo</groupId>
             <artifactId>myfluxo-adapter-http</artifactId>
         </dependency>
+        <!--
+          adapter-auth is only used by the E2E auth IT in this module
+          (test scope, not production). Production wiring lives in
+          bootstrap; this dep just lets the IT instantiate concrete
+          Argon2/JWT/HMAC implementations.
+        -->
+        <dependency>
+            <groupId>cx.myfluxo</groupId>
+            <artifactId>myfluxo-adapter-auth</artifactId>
+            <scope>test</scope>
+        </dependency>
 
         <!-- JDBI: declarative SQL, no codegen. -->
         <dependency>
