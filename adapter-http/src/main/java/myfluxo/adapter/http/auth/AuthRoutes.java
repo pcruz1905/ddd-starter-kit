@@ -76,7 +76,8 @@ public final class AuthRoutes implements HttpService {
             .post("/v1/auth/login", this::handleLogin)
             .post("/v1/auth/refresh", this::handleRefresh)
             .post("/v1/auth/logout", this::handleLogout)
-            .post("/v1/auth/change-password", this::handleChangePassword);
+            .post("/v1/auth/change-password", this::handleChangePassword)
+            .get("/v1/auth/me", this::handleMe);
     }
 
     // ── Public endpoints ────────────────────────────────────────────────
@@ -180,6 +181,32 @@ public final class AuthRoutes implements HttpService {
             case Result.Err<UserId, AuthError>(AuthError e) ->
                 send(res, AuthErrorMapper.toHttpResult(e));
         }
+    }
+
+    /**
+     * {@code GET /v1/auth/me} — return the authenticated caller's
+     * identity and role. The canonical "who am I" endpoint.
+     *
+     * <p>Requires a valid Bearer token (any role). For a route that
+     * requires a SPECIFIC permission, use
+     * {@code bearerAuth.requirePermission(req, Permission.X)} instead:
+     * <pre>{@code
+     *   var auth = bearerAuth.requirePermission(req, Permission.USERS_DELETE);
+     *   if (auth instanceof Result.Err<CurrentUser, AuthError>(AuthError e)) {
+     *       send(res, AuthErrorMapper.toHttpResult(e));
+     *       return;
+     *   }
+     *   // ... proceed
+     * }</pre>
+     */
+    private void handleMe(ServerRequest req, ServerResponse res) {
+        var auth = bearerAuth.require(req);
+        if (auth instanceof Result.Err<CurrentUser, AuthError>(AuthError e)) {
+            send(res, AuthErrorMapper.toHttpResult(e));
+            return;
+        }
+        var current = ((Result.Ok<CurrentUser, AuthError>) auth).value();
+        send(res, new HttpResult(Status.OK_200.code(), CurrentUserResponse.from(current)));
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────
