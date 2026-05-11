@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
-    name: mvn verify
+  build:
+    name: build
     runs-on: ubuntu-latest
 
     steps:
@@ -27,7 +27,19 @@ jobs:
           java-version: '25'
           cache: maven
 
-      - name: Verify build, unit tests, and integration tests
+      # Run the schema-drift IT FIRST as a named step. If a Flyway
+      # migration and a row record have diverged, this fails fast — and
+      # the `::error::` annotation surfaces a clear "Schema drift
+      # detected" banner in the PR's Checks tab. No drift reaches main.
+      - name: Schema drift check (no DB↔code drift reaches main)
+        run: |
+          set -o pipefail
+          if ! mvn -B -ntp -pl adapter-persistence-jdbc -am -DskipTests verify -Dit.test=SchemaDriftIT; then
+            echo "::error title=Schema drift detected::Row records and Flyway-managed DB columns are out of sync. See SchemaDriftIT output above for the exact mismatch — fix the migration OR the row record before merging."
+            exit 1
+          fi
+
+      - name: Full build, unit tests, integration tests
         # Testcontainers runs Postgres in Docker; ubuntu-latest ships
         # with Docker preinstalled, no extra setup needed.
         run: mvn -B -ntp verify
