@@ -1,12 +1,49 @@
-# DDD Starter Kit — Java 25 backend
+<h1 align="center">DDD Starter Kit</h1>
 
-Production-grade backend starter kit for greenfield projects. Domain-Driven Design,
-ports & adapters, sealed-type domain errors, transactional outbox, HTTP-layer
-idempotency, full auth stack (Argon2id + JWT + rotating refresh tokens), Bucket4j
-rate limiting, structured audit logging, schema-drift CI gate.
+<p align="center">
+  Production-grade backend foundation in <strong>Java 25 LTS</strong>.<br/>
+  Domain-Driven Design · Ports & Adapters · Built to be forked.
+</p>
 
-**Built to be forked.** Replace the example `User` aggregate with your own; the
-rest of the kit — auth, persistence wiring, HTTP routes, CI — comes for free.
+<p align="center">
+  <a href="#stack"><img alt="Java 25" src="https://img.shields.io/badge/Java-25_LTS-orange?logo=openjdk"></a>
+  <a href="#stack"><img alt="Helidon 4" src="https://img.shields.io/badge/Helidon-4_(N%C3%ADma)-blue"></a>
+  <a href="#stack"><img alt="Postgres" src="https://img.shields.io/badge/Postgres-supported-336791?logo=postgresql"></a>
+  <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/License-MIT-green"></a>
+</p>
+
+<p align="center">
+  <a href="#what-you-get">Features</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="docs/README.md">Docs</a> ·
+  <a href="#auth-api">Auth API</a> ·
+  <a href="docs/adding-an-aggregate.md">Add an aggregate</a>
+</p>
+
+---
+
+This is a **starter kit**, not a framework. Fork it, replace the example `User` aggregate with your own, and you have a backend with auth, RBAC, refresh-token rotation with theft detection, rate limiting, audit logging, transactional outbox, HTTP idempotency, and a CI-enforced schema-drift gate.
+
+The kit is opinionated — every choice has a rationale in [`docs/`](docs/). If you disagree with one, swap that piece; everything sits behind a port.
+
+---
+
+## What you get
+
+- **DDD building blocks** — aggregates, value objects, repositories, domain events, sealed errors. Compiler-enforced layering via ArchUnit. [`docs/architecture.md`](docs/architecture.md)
+- **`Result<T, E>` everywhere** — failures are values, not exceptions; pattern-match exhaustively. [`docs/result-and-errors.md`](docs/result-and-errors.md)
+- **JDBI 3 + Postgres** — declarative SQL, no codegen, no ORM. `Table<R>` derives the boilerplate. [`docs/persistence.md`](docs/persistence.md)
+- **Java 25 `ScopedValue`-based UnitOfWork** — no ThreadLocal, no `@Transactional` annotations, commit/rollback driven by `Result`. [`docs/persistence.md`](docs/persistence.md#unit-of-work)
+- **Schema drift CI gate** — fails the build when row records and Flyway migrations stop agreeing. [`docs/schema-drift.md`](docs/schema-drift.md)
+- **Full auth stack** — register / login / refresh-with-rotation / logout / change-password. [`docs/auth.md`](docs/auth.md)
+- **OWASP-grade password hashing** — Argon2id with recommended parameters, timing-attack-safe login. [`docs/auth.md#password-hashing--argon2id`](docs/auth.md#password-hashing--argon2id)
+- **Refresh-token rotation with theft detection** — family revocation when a rotated token is replayed. [`docs/auth.md#refresh-tokens--rotation--family-revocation`](docs/auth.md#refresh-tokens--rotation--family-revocation)
+- **RBAC** — `Permission` × sealed `Role` hierarchy, HTTP-boundary `requirePermission`. [`docs/rbac.md`](docs/rbac.md)
+- **Brute-force protection** — per-IP Bucket4j token buckets on `/login` and `/register`. [`docs/rate-limiting.md`](docs/rate-limiting.md)
+- **Structured audit log** — dedicated SLF4J channel for security events. [`docs/audit-log.md`](docs/audit-log.md)
+- **Transactional outbox** — events ride the same transaction as the data change. `FOR UPDATE SKIP LOCKED` dispatcher. [`docs/outbox.md`](docs/outbox.md)
+- **HTTP idempotency middleware** — Stripe / IETF `Idempotency-Key` semantics. [`docs/idempotency.md`](docs/idempotency.md)
+- **End-to-end ITs** — Testcontainers Postgres, real HTTP server, no mocks at the integration layer.
 
 ---
 
@@ -14,40 +51,71 @@ rest of the kit — auth, persistence wiring, HTTP routes, CI — comes for free
 
 | Concern | Choice | Why |
 | --- | --- | --- |
-| Language | Java 25 LTS | Records, sealed types, pattern matching, unnamed patterns, scoped values |
-| HTTP server | [Helidon 4 SE](https://helidon.io/) (Níma) | Virtual-thread-native, lean, no Spring |
-| Persistence | [JDBI 3](https://jdbi.org/) + Postgres | Declarative SQL, no codegen, no bytecode magic |
-| Migrations | [Flyway 11](https://flywaydb.org/) | Versioned, drift-checked in CI |
+| Language | **Java 25 LTS** | Records, sealed types, pattern matching, scoped values, unnamed patterns |
+| HTTP | **Helidon 4 SE (Níma)** | Virtual-thread-native, no Servlet API, no Spring |
+| Persistence | **JDBI 3** + Postgres | Declarative SQL, no codegen, no bytecode magic |
+| Migrations | **Flyway 11** | Versioned, checksummed, drift-checked in CI |
 | Pool | HikariCP | Standard |
-| DI | [Avaje Inject](https://avaje.io/inject/) | Compile-time, no reflection |
-| Password hashing | [Password4j](https://password4j.com/) Argon2id | OWASP-recommended default |
-| JWT | [jjwt 0.12](https://github.com/jwtk/jjwt) | HS256 access tokens |
-| Rate limiting | [Bucket4j](https://github.com/bucket4j/bucket4j) | Token-bucket per IP |
-| Tests | JUnit 5 + AssertJ + Testcontainers Postgres | Real DB in CI |
+| DI | **Avaje Inject** | Compile-time, no reflection |
+| Passwords | **Password4j Argon2id** | OWASP recommended |
+| JWT | **jjwt 0.12** | HS256 access tokens |
+| Rate limit | **Bucket4j 8** | Per-IP token buckets |
+| Tests | JUnit 5 · AssertJ · Testcontainers · ArchUnit | Real DB, no mocks at integration |
 | Build | Maven 3.9+ | Multi-module reactor |
-| CI | GitHub Actions | Build + drift check + E2E |
+| CI | GitHub Actions | Build · drift check · ArchUnit · E2E |
 
-**No Spring. No Hibernate. No JOOQ codegen.**
+**No Spring. No Hibernate. No JOOQ codegen.** See the rationale in [`docs/architecture.md#why-this-stack`](docs/architecture.md#why-this-stack).
 
 ---
 
-## What you get out of the box
+## Quick start
 
-- ✅ DDD aggregates with optimistic concurrency
-- ✅ Sealed-type domain errors (`Result<T, E>`, exhaustive at every call site)
-- ✅ Transactional outbox + JSON-archived hard delete
-- ✅ Functional Unit of Work (Java 25 `ScopedValue`-based, no ThreadLocal)
-- ✅ Process Manager / Saga skeleton
-- ✅ Background job runner (`FOR UPDATE SKIP LOCKED`)
-- ✅ HTTP-layer idempotency middleware (Stripe / IETF style)
-- ✅ Composable dynamic-query DSL (`Condition` + `Predicates`)
-- ✅ Schema drift check in CI (records vs migrations)
-- ✅ ArchUnit layering rules enforced in CI
-- ✅ **Auth stack**: register / login / refresh-with-rotation / logout / change-password
-- ✅ **RBAC**: `Permission` × `Role` (`Admin | Member | Viewer`), HTTP-level `requirePermission`
-- ✅ **Brute-force protection**: per-IP rate limiting on `/login` and `/register`
-- ✅ **Audit log**: dedicated SLF4J channel (`myfluxo.audit.auth`) for every auth event
-- ✅ **Theft detection**: refresh-token family revocation on replayed/rotated tokens
+Requires **JDK 25** + Docker (for Testcontainers).
+
+```bash
+# 1. Generate two distinct 32-byte secrets
+export MYFLUXO_JWT_SECRET=$(openssl rand -hex 32)
+export MYFLUXO_REFRESH_TOKEN_SECRET=$(openssl rand -hex 32)
+
+# 2. Point at your Postgres
+export MYFLUXO_JDBC_URL='jdbc:postgresql://localhost:5432/myfluxo'
+export MYFLUXO_DB_USER='myfluxo'
+export MYFLUXO_DB_PASSWORD='...'
+
+# 3. Build + run the full test suite (unit, IT, schema-drift, ArchUnit)
+mvn verify
+
+# 4. Run the app
+mvn -pl bootstrap exec:java -Dexec.mainClass=myfluxo.bootstrap.Application
+```
+
+The app listens on `MYFLUXO_HTTP_PORT` (default `8080`).
+
+---
+
+## Architecture at a glance
+
+Four concentric rings. Dependencies point inward. The compiler enforces it.
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  bootstrap            (composition root, main, wiring)   │
+│ ┌──────────────────────────────────────────────────────┐ │
+│ │  adapters         (HTTP, JDBC, auth-crypto)          │ │
+│ │ ┌──────────────────────────────────────────────────┐ │ │
+│ │ │  application  (use cases, UnitOfWork)            │ │ │
+│ │ │ ┌──────────────────────────────────────────────┐ │ │ │
+│ │ │ │  domain  (aggregates, value objects, errors) │ │ │ │
+│ │ │ │ ┌────────────────────────────────────────────┐ │ │ │
+│ │ │ │ │  kernel  (Result, Identifier, DomainEvent) │ │ │ │
+│ │ │ │ └────────────────────────────────────────────┘ │ │ │
+│ │ │ └──────────────────────────────────────────────┘ │ │ │
+│ │ └──────────────────────────────────────────────────┘ │ │
+│ └──────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────┘
+```
+
+Layering rules are enforced by ArchUnit in CI — see [`docs/architecture.md`](docs/architecture.md).
 
 ---
 
@@ -55,63 +123,43 @@ rest of the kit — auth, persistence wiring, HTTP routes, CI — comes for free
 
 ```
 .
-├── kernel/                       DDD building blocks (no domain concepts)
-├── domain/                       aggregates, value objects, sealed events/errors
-│   ├── users/                    User aggregate
-│   └── auth/                     Credentials + RefreshToken aggregates, Role, Permission
-├── application/                  use cases (orchestration only)
-│   ├── users/usecases/           RegisterUser
-│   └── auth/usecases/            Register, Login, RefreshSession, Logout, ChangePassword
-├── adapter-persistence-jdbc/     JDBI + Postgres impls
-│   ├── auth/                     Credentials + RefreshToken repos
-│   ├── process/                  Process-instance repo
-│   ├── users/                    User repo
-│   └── outbox/                   Outbox dispatcher + sinks
-├── adapter-http/                 Helidon routes + DTOs
-│   ├── auth/                     AuthRoutes, JwtBearerAuth, AuthRateLimiter
-│   └── users/                    UserRoutes
+├── kernel/                       DDD building blocks (Result, Identifier, AggregateRoot, ...)
+├── domain/                       Aggregates, value objects, sealed errors, ports
+│   ├── users/                       User aggregate
+│   └── auth/                        Credentials + RefreshToken aggregates, Role, Permission
+├── application/                  Use cases (orchestration), UnitOfWork port
+│   ├── users/usecases/              RegisterUser
+│   └── auth/usecases/               Register, Login, RefreshSession, Logout, ChangePassword
+├── adapter-persistence-jdbc/     JDBI repositories + Postgres
+│   ├── outbox/                      Transactional outbox + dispatcher
+│   └── ...
+├── adapter-http/                 Helidon routes + middlewares
+│   ├── auth/                        AuthRoutes, JwtBearerAuth, AuthRateLimiter
+│   └── idempotency/                 IdempotencyMiddleware
 ├── adapter-auth/                 Argon2 hasher, JWT issuer, HMAC refresh strategy
-└── bootstrap/                    Composition root (AppFactory + Application main)
+├── bootstrap/                    Composition root (AppFactory + Application main, ArchUnit tests)
+└── docs/                         Design rationale ← start here for the "why"
 ```
 
----
-
-## Quick start
-
-```bash
-# 1. Set required env vars (generate secrets with: openssl rand -hex 32)
-export MYFLUXO_JDBC_URL='jdbc:postgresql://localhost:5432/myfluxo'
-export MYFLUXO_DB_USER='myfluxo'
-export MYFLUXO_DB_PASSWORD='...'
-export MYFLUXO_JWT_SECRET=$(openssl rand -hex 32)
-export MYFLUXO_REFRESH_TOKEN_SECRET=$(openssl rand -hex 32)
-
-# 2. Build + run all tests (needs Docker for Testcontainers)
-mvn verify
-
-# 3. Run the app
-mvn -pl bootstrap exec:java -Dexec.mainClass=myfluxo.bootstrap.Application
-```
-
-App listens on `MYFLUXO_HTTP_PORT` (default 8080).
+Layering rules — `domain` depends only on `kernel`; `application` on `kernel` + `domain`; no sibling-adapter coupling — are enforced by ArchUnit. Break a rule and CI breaks. See [`docs/architecture.md`](docs/architecture.md).
 
 ---
 
 ## Auth API
 
-All endpoints under `/v1/auth/*`. JSON bodies. Errors in Stripe-shape
-`{"error": {"code": "...", "message": "..."}}`.
+All endpoints under `/v1/auth/*`. JSON bodies. Errors in Stripe-shape `{"error": {"code": "...", "message": "..."}}`. Full design rationale in [`docs/auth.md`](docs/auth.md).
 
 | Method | Path | Auth | Body | Returns |
 | --- | --- | --- | --- | --- |
-| POST | `/v1/auth/register` | — | `{email, password}` | `201` session |
-| POST | `/v1/auth/login` | — | `{email, password}` | `200` session |
-| POST | `/v1/auth/refresh` | — | `{refreshToken}` | `200` rotated session |
-| POST | `/v1/auth/logout` | — | `{refreshToken}` | `204` |
-| POST | `/v1/auth/change-password` | Bearer | `{oldPassword, newPassword}` | `204` |
-| GET | `/v1/auth/me` | Bearer | — | `200 {userId, role}` |
+| `POST` | `/v1/auth/register` | — | `{email, password}` | `201` session |
+| `POST` | `/v1/auth/login` | — | `{email, password}` | `200` session |
+| `POST` | `/v1/auth/refresh` | — | `{refreshToken}` | `200` rotated session |
+| `POST` | `/v1/auth/logout` | — | `{refreshToken}` | `204` |
+| `POST` | `/v1/auth/change-password` | Bearer | `{oldPassword, newPassword}` | `204` |
+| `GET`  | `/v1/auth/me` | Bearer | — | `200 {userId, role}` |
 
 Session shape:
+
 ```json
 {
   "userId": "uuid",
@@ -123,63 +171,55 @@ Session shape:
 }
 ```
 
-### Production-grade properties
+Security properties (all proven by tests):
 
-- **Argon2id** password hashing with OWASP-recommended parameters (19 MiB, 2 iter, 1 par)
-- **Timing-attack-safe login**: Argon2 verify runs against a decoy hash even when the user doesn't exist
-- **Refresh token rotation** with family tracking — replayed token after rotation triggers revocation of the entire family (forces re-auth on every device)
-- **HMAC-SHA256 server-side hashing** of refresh tokens (a DB dump alone doesn't yield usable tokens)
-- **JWT signing** with HS256 and configurable issuer
-- **Rate limiting**: 5 login / 15 min and 3 register / hour per IP
-- **Audit log** for every auth event (register, login success/failure, refresh, logout, password change, theft detection) on a dedicated SLF4J channel
+- Argon2id password hashing (OWASP parameters: 19 MiB · 2 iter · 1 par)
+- Timing-attack-safe login (decoy hash always verified)
+- Refresh-token rotation with family-based theft detection
+- HMAC-SHA256 server-side hashing of refresh tokens
+- Rate limiting (5 login / 15 min, 3 register / hour, per IP)
+- Audit log on dedicated SLF4J channel `myfluxo.audit.auth`
 
 ---
 
-## Configuration (env)
+## Configuration
 
-| Var | Required | Default | Notes |
+| Variable | Required | Default | Notes |
 | --- | --- | --- | --- |
 | `MYFLUXO_JDBC_URL` | ✅ | — | Postgres JDBC URL |
 | `MYFLUXO_DB_USER` | ✅ | — | |
 | `MYFLUXO_DB_PASSWORD` | ✅ | — | |
-| `MYFLUXO_JWT_SECRET` | ✅ | — | ≥32 bytes (UTF-8); `openssl rand -hex 32` |
-| `MYFLUXO_REFRESH_TOKEN_SECRET` | ✅ | — | ≥32 bytes; distinct from `JWT_SECRET` |
-| `MYFLUXO_JWT_ISSUER` | — | `myfluxo` | `iss` claim on issued JWTs |
+| `MYFLUXO_JWT_SECRET` | ✅ | — | ≥ 32 bytes; `openssl rand -hex 32` |
+| `MYFLUXO_REFRESH_TOKEN_SECRET` | ✅ | — | ≥ 32 bytes; **distinct** from `JWT_SECRET` |
+| `MYFLUXO_JWT_ISSUER` | — | `myfluxo` | `iss` claim |
 | `MYFLUXO_ACCESS_TOKEN_TTL_MINUTES` | — | `15` | Access JWT lifetime |
 | `MYFLUXO_REFRESH_TOKEN_TTL_DAYS` | — | `7` | Refresh-token lifetime |
 | `MYFLUXO_HTTP_PORT` | — | `8080` | HTTP listen port |
 
 ---
 
-## Architecture cheat sheet
+## Documentation
 
-```
-HTTP request
-  └─ Routes (adapter-http)             — parse body, call use case
-       └─ Use case (application)        — uow.inTransaction { ... }, returns Result<T,E>
-            ├─ Domain                    — aggregates enforce invariants, record events
-            └─ Ports (domain)            — UserRepository, CredentialsRepository, ...
-                 └─ Adapters             — JDBI repos, Argon2 hasher, JWT issuer
-                      └─ Postgres        — Flyway-migrated schema
-                           └─ outbox     — dispatcher → archive / sink / Kafka / ...
-```
+Start with [`docs/README.md`](docs/README.md) — it has a recommended reading order and topic index. Highlights:
 
-Layering rules enforced by **ArchUnit** in `bootstrap/.../ArchitectureTest`:
-- `domain` has no framework imports
-- `domain` depends only on `kernel`
-- `application` depends only on `kernel` + `domain`
-- `kernel` has no framework imports
-- No adapter depends on another adapter (one documented exception)
+### Foundations
+- [Architecture](docs/architecture.md) — the four rings, ports & adapters, ArchUnit
+- [Result & errors](docs/result-and-errors.md) — sealed sums, exhaustive matching
+- [Persistence](docs/persistence.md) — JDBI, `Table<R>`, UnitOfWork, ScopedValue
 
----
+### Security
+- [Auth](docs/auth.md) — Argon2id, JWT, rotation, theft detection, timing-safe login
+- [RBAC](docs/rbac.md) — Permission × Role
+- [Rate limiting](docs/rate-limiting.md) — Bucket4j
+- [Audit log](docs/audit-log.md) — dedicated SLF4J channel
 
-## Schema drift gate
+### Reliability patterns
+- [Outbox](docs/outbox.md) — transactional events without dual-write
+- [Idempotency](docs/idempotency.md) — Stripe / IETF middleware
+- [Schema drift](docs/schema-drift.md) — CI gate against records-vs-migrations drift
 
-`SchemaDriftIT` boots Postgres, runs Flyway, then cross-validates every
-`Table<R>` row record against `information_schema.columns`. If a migration
-renames a column without updating the row record (or vice versa), CI
-fails with a precise diff. GitHub Actions workflow surfaces it as
-**"Schema drift detected"** before any other test runs.
+### Recipes
+- [Adding an aggregate](docs/adding-an-aggregate.md) — end-to-end recipe
 
 ---
 
@@ -187,35 +227,14 @@ fails with a precise diff. GitHub Actions workflow surfaces it as
 
 | Tool | Why we skip |
 | --- | --- |
-| Spring | Reflection + classpath magic; we use Avaje Inject (compile-time, no reflection) |
-| Hibernate / JPA | ORM impedance mismatch; we use JDBI for declarative SQL |
-| JOOQ codegen | Adds a build-time DB or DDL-parsing step; the small `Table<R>` helper covers the ergonomic gap |
+| Spring | Reflection + classpath magic; Avaje Inject (compile-time, no reflection) instead |
+| Hibernate / JPA | ORM impedance mismatch; JDBI's declarative SQL is the better default for a starter |
+| JOOQ codegen | Adds a build-time DB or DDL-parsing step; `Table<R>` covers ~90% of the ergonomic gap at ~10% of the build cost |
 
-The kit's persistence ergonomics: snake_case ↔ camelCase auto-mapping via
-JDBI's `ConstructorMapper`, `@ColumnName` overrides where needed,
-`@JsonbColumn` for Postgres `jsonb`, `Table<R>` derivable SQL strings,
-`col(...)` startup-time column-name validation. ~90% of the type-safety
-of jOOQ codegen at ~10% of the build cost.
-
----
-
-## Adding a new aggregate
-
-1. New row record under `adapter-persistence-jdbc/.../yourthing/YourRow.java`
-   with `public static final Table<YourRow> TABLE = Table.of("yourthings", YourRow.class);`
-2. Flyway migration creating the `yourthings` table
-3. Domain aggregate extends `AbstractAggregateRoot<YourId>`
-4. Repository port in `domain.yourthing` + `JdbiYourRepository extends JdbiAggregateRepository<...>`
-5. Register `YourRow.TABLE.rowMapperFactory()` in `JdbiSetup`
-6. Add `YourRow.TABLE` to `SchemaDriftIT.REGISTERED_TABLES`
-7. Use case in `application.yourthing.usecases`
-8. HTTP route in `adapter-http.yourthing`
-
-The first new aggregate takes a few hours (you have to look up the pattern).
-The next takes ~30 minutes.
+Long version: [`docs/architecture.md#why-this-stack`](docs/architecture.md#why-this-stack), [`docs/persistence.md#why-this-and-not-jooq-codegen`](docs/persistence.md#why-this-and-not-jooq-codegen).
 
 ---
 
 ## License
 
-MIT. Fork it, ship it.
+[MIT](LICENSE). Fork it, ship it.
