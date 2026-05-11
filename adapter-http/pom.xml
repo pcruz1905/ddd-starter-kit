@@ -31,6 +31,12 @@
             <artifactId>myfluxo-application</artifactId>
         </dependency>
 
+        <!-- Bucket4j — rate limiting on auth endpoints -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+        </dependency>
+
         <!-- Helidon Níma WebServer -->
         <dependency>
             <groupId>io.helidon.webserver</groupId>

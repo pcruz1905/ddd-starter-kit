@@ -63,6 +63,8 @@
         <password4j.version>1.8.2</password4j.version>
         <!-- jjwt: lightweight JWT for HS256-signed access tokens. -->
         <jjwt.version>0.12.6</jjwt.version>
+        <!-- Bucket4j: token-bucket rate limiting for auth endpoints. -->
+        <bucket4j.version>8.10.1</bucket4j.version>
 
         <!-- Plugins -->
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
@@ -110,6 +112,13 @@
                 <groupId>com.password4j</groupId>
                 <artifactId>password4j</artifactId>
                 <version>${password4j.version}</version>
+            </dependency>
+
+            <!-- Bucket4j — in-memory token-bucket rate limiting -->
+            <dependency>
+                <groupId>com.bucket4j</groupId>
+                <artifactId>bucket4j-core</artifactId>
+                <version>${bucket4j.version}</version>
             </dependency>
 
             <!-- jjwt — JWT signing/parsing -->

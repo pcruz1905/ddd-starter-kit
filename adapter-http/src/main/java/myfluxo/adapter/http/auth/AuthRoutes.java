@@ -49,6 +49,7 @@ public final class AuthRoutes implements HttpService {
     private final Logout logout;
     private final ChangePassword changePassword;
     private final JwtBearerAuth bearerAuth;
+    private final AuthRateLimiter rateLimiter;
     private final ObjectMapper json;
 
     public AuthRoutes(
@@ -58,6 +59,7 @@ public final class AuthRoutes implements HttpService {
         Logout logout,
         ChangePassword changePassword,
         JwtBearerAuth bearerAuth,
+        AuthRateLimiter rateLimiter,
         ObjectMapper json
     ) {
         this.register = register;
@@ -66,6 +68,7 @@ public final class AuthRoutes implements HttpService {
         this.logout = logout;
         this.changePassword = changePassword;
         this.bearerAuth = bearerAuth;
+        this.rateLimiter = rateLimiter;
         this.json = json;
     }
 
@@ -83,6 +86,10 @@ public final class AuthRoutes implements HttpService {
     // ── Public endpoints ────────────────────────────────────────────────
 
     private void handleRegister(ServerRequest req, ServerResponse res) {
+        if (!rateLimiter.allowRegister(callerIp(req))) {
+            send(res, rateLimitExceeded());
+            return;
+        }
         var parsed = parseBody(req, RegisterRequest.class);
         if (parsed instanceof Result.Err<RegisterRequest, HttpResult>(HttpResult err)) {
             send(res, err);
@@ -100,6 +107,10 @@ public final class AuthRoutes implements HttpService {
     }
 
     private void handleLogin(ServerRequest req, ServerResponse res) {
+        if (!rateLimiter.allowLogin(callerIp(req))) {
+            send(res, rateLimitExceeded());
+            return;
+        }
         var parsed = parseBody(req, LoginRequest.class);
         if (parsed instanceof Result.Err<LoginRequest, HttpResult>(HttpResult err)) {
             send(res, err);
@@ -230,5 +241,29 @@ public final class AuthRoutes implements HttpService {
         } else {
             res.send(result.body());
         }
+    }
+
+    private static String callerIp(ServerRequest req) {
+        // Direct peer address. Production behind a reverse proxy should
+        // parse {@code X-Forwarded-For} (trusting only the proxy chain).
+        // For starter-kit purposes we use the raw connection IP — strict
+        // and predictable; misconfigured proxies bucket every caller
+        // under the LB's IP, which is harmless except for false-positive
+        // rate-limit shared-bucket behaviour.
+        try {
+            return req.remotePeer().address().toString();
+        } catch (Exception ignored) {
+            return "unknown";
+        }
+    }
+
+    private static HttpResult rateLimitExceeded() {
+        return new HttpResult(
+            Status.TOO_MANY_REQUESTS_429.code(),
+            ErrorResponse.of(
+                "rate_limited",
+                "Too many attempts from this IP. Try again later."
+            )
+        );
     }
 }
