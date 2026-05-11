@@ -38,30 +38,31 @@ final class AuthFixture {
     final FakeRefreshTokenStrategy refreshStrategy = new FakeRefreshTokenStrategy();
     final FakeUnitOfWork uow = new FakeUnitOfWork();
     final FakeDomainEventPublisher events = new FakeDomainEventPublisher();
+    final AuthAuditLogger audit = new AuthAuditLogger();
     final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
 
     final Register register = new Register(
         users, credentials, refreshTokens,
-        hasher, tokenIssuer, refreshStrategy, events,
+        hasher, tokenIssuer, refreshStrategy, events, audit,
         uow, clock, RefreshTokenTtl.of(REFRESH_TTL)
     );
 
     final Login login = new Login(
         users, credentials, refreshTokens,
-        hasher, tokenIssuer, refreshStrategy,
+        hasher, tokenIssuer, refreshStrategy, audit,
         uow, clock, RefreshTokenTtl.of(REFRESH_TTL)
     );
 
     final RefreshSession refreshSession = new RefreshSession(
-        refreshTokens, users, refreshStrategy, tokenIssuer,
+        refreshTokens, users, refreshStrategy, tokenIssuer, audit,
         uow, clock, RefreshTokenTtl.of(REFRESH_TTL)
     );
 
     final Logout logout = new Logout(
-        refreshTokens, refreshStrategy, uow, clock
+        refreshTokens, refreshStrategy, audit, uow, clock
     );
 
     final ChangePassword changePassword = new ChangePassword(
-        credentials, refreshTokens, hasher, uow, clock
+        credentials, refreshTokens, hasher, audit, uow, clock
     );
 }

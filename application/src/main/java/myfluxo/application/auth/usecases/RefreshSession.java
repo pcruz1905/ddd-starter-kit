@@ -3,6 +3,7 @@ package myfluxo.application.auth.usecases;
 import jakarta.inject.Singleton;
 import myfluxo.application.UnitOfWork;
 import myfluxo.application.UseCase;
+import myfluxo.application.auth.AuthAuditLogger;
 import myfluxo.application.auth.AuthSession;
 import myfluxo.application.auth.RefreshTokenTtl;
 import myfluxo.application.auth.commands.RefreshSessionCommand;
@@ -51,6 +52,7 @@ public final class RefreshSession implements UseCase<RefreshSessionCommand, Auth
     private final UserRepository users;
     private final RefreshTokenStrategy refreshStrategy;
     private final TokenIssuer tokenIssuer;
+    private final AuthAuditLogger audit;
     private final UnitOfWork uow;
     private final Clock clock;
     private final Duration refreshTokenTtl;
@@ -60,6 +62,7 @@ public final class RefreshSession implements UseCase<RefreshSessionCommand, Auth
         UserRepository users,
         RefreshTokenStrategy refreshStrategy,
         TokenIssuer tokenIssuer,
+        AuthAuditLogger audit,
         UnitOfWork uow,
         Clock clock,
         RefreshTokenTtl refreshTokenTtl
@@ -68,6 +71,7 @@ public final class RefreshSession implements UseCase<RefreshSessionCommand, Auth
         this.users = users;
         this.refreshStrategy = refreshStrategy;
         this.tokenIssuer = tokenIssuer;
+        this.audit = audit;
         this.uow = uow;
         this.clock = clock;
         this.refreshTokenTtl = refreshTokenTtl.value();
@@ -94,6 +98,7 @@ public final class RefreshSession implements UseCase<RefreshSessionCommand, Auth
             // entire family and refuse this attempt.
             if (token.isRotated()) {
                 refreshTokens.revokeFamily(token.familyId(), now);
+                audit.refreshReuseDetected(token.userId(), token.familyId());
                 return Result.err(new AuthError.RefreshTokenReuseDetected());
             }
 
@@ -117,13 +122,15 @@ public final class RefreshSession implements UseCase<RefreshSessionCommand, Auth
             var newExpiry = now.plus(refreshTokenTtl);
             RefreshToken successor = token.rotate(newHash, newExpiry, now);
 
-            // Save both — the old one transitions to rotated, the
-            // successor is freshly issued.
-            refreshTokens.save(token);
+            // Save successor BEFORE the rotated original — the original's
+            // replaced_by_token_id FK requires the successor to exist
+            // within the same transaction.
             refreshTokens.save(successor);
+            refreshTokens.save(token);
 
             var accessToken = tokenIssuer.issue(user.id(), user.role(), now);
 
+            audit.refreshed(user.id());
             return Result.ok(new AuthSession(
                 user.id(), user.role(), accessToken, newPlaintext, newExpiry
             ));

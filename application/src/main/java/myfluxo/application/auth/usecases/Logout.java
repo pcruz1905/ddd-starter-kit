@@ -3,6 +3,7 @@ package myfluxo.application.auth.usecases;
 import jakarta.inject.Singleton;
 import myfluxo.application.UnitOfWork;
 import myfluxo.application.UseCase;
+import myfluxo.application.auth.AuthAuditLogger;
 import myfluxo.application.auth.commands.LogoutCommand;
 import myfluxo.domain.auth.RefreshToken;
 import myfluxo.domain.auth.RefreshTokenRepository;
@@ -28,17 +29,20 @@ public final class Logout implements UseCase<LogoutCommand, RefreshTokenId, Auth
 
     private final RefreshTokenRepository refreshTokens;
     private final RefreshTokenStrategy refreshStrategy;
+    private final AuthAuditLogger audit;
     private final UnitOfWork uow;
     private final Clock clock;
 
     public Logout(
         RefreshTokenRepository refreshTokens,
         RefreshTokenStrategy refreshStrategy,
+        AuthAuditLogger audit,
         UnitOfWork uow,
         Clock clock
     ) {
         this.refreshTokens = refreshTokens;
         this.refreshStrategy = refreshStrategy;
+        this.audit = audit;
         this.uow = uow;
         this.clock = clock;
     }
@@ -66,6 +70,7 @@ public final class Logout implements UseCase<LogoutCommand, RefreshTokenId, Auth
             token.revoke(clock.instant());
             refreshTokens.save(token);
 
+            audit.loggedOut(token.userId());
             return Result.ok(token.id());
         });
     }

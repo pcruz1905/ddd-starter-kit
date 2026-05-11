@@ -3,6 +3,7 @@ package myfluxo.application.auth.usecases;
 import jakarta.inject.Singleton;
 import myfluxo.application.UnitOfWork;
 import myfluxo.application.UseCase;
+import myfluxo.application.auth.AuthAuditLogger;
 import myfluxo.application.auth.commands.ChangePasswordCommand;
 import myfluxo.domain.auth.Credentials;
 import myfluxo.domain.auth.CredentialsRepository;
@@ -41,6 +42,7 @@ public final class ChangePassword implements UseCase<ChangePasswordCommand, User
     private final CredentialsRepository credentials;
     private final RefreshTokenRepository refreshTokens;
     private final PasswordHasher hasher;
+    private final AuthAuditLogger audit;
     private final UnitOfWork uow;
     private final Clock clock;
 
@@ -48,12 +50,14 @@ public final class ChangePassword implements UseCase<ChangePasswordCommand, User
         CredentialsRepository credentials,
         RefreshTokenRepository refreshTokens,
         PasswordHasher hasher,
+        AuthAuditLogger audit,
         UnitOfWork uow,
         Clock clock
     ) {
         this.credentials = credentials;
         this.refreshTokens = refreshTokens;
         this.hasher = hasher;
+        this.audit = audit;
         this.uow = uow;
         this.clock = clock;
     }
@@ -102,6 +106,7 @@ public final class ChangePassword implements UseCase<ChangePasswordCommand, User
             // Kill all other sessions.
             refreshTokens.revokeAllForUser(userId, now);
 
+            audit.passwordChanged(userId);
             return Result.ok(userId);
         });
     }

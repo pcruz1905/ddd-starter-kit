@@ -3,6 +3,7 @@ package myfluxo.application.auth.usecases;
 import jakarta.inject.Singleton;
 import myfluxo.application.UnitOfWork;
 import myfluxo.application.UseCase;
+import myfluxo.application.auth.AuthAuditLogger;
 import myfluxo.application.auth.AuthSession;
 import myfluxo.application.auth.RefreshTokenTtl;
 import myfluxo.application.auth.commands.LoginCommand;
@@ -60,6 +61,7 @@ public final class Login implements UseCase<LoginCommand, AuthSession, AuthError
     private final PasswordHasher hasher;
     private final TokenIssuer tokenIssuer;
     private final RefreshTokenStrategy refreshStrategy;
+    private final AuthAuditLogger audit;
     private final UnitOfWork uow;
     private final Clock clock;
     private final Duration refreshTokenTtl;
@@ -80,6 +82,7 @@ public final class Login implements UseCase<LoginCommand, AuthSession, AuthError
         PasswordHasher hasher,
         TokenIssuer tokenIssuer,
         RefreshTokenStrategy refreshStrategy,
+        AuthAuditLogger audit,
         UnitOfWork uow,
         Clock clock,
         RefreshTokenTtl refreshTokenTtl
@@ -90,6 +93,7 @@ public final class Login implements UseCase<LoginCommand, AuthSession, AuthError
         this.hasher = hasher;
         this.tokenIssuer = tokenIssuer;
         this.refreshStrategy = refreshStrategy;
+        this.audit = audit;
         this.uow = uow;
         this.clock = clock;
         this.refreshTokenTtl = refreshTokenTtl.value();
@@ -109,6 +113,7 @@ public final class Login implements UseCase<LoginCommand, AuthSession, AuthError
                 // No verify needed — we don't even know how to build
                 // a real attempt. Returning fast here doesn't leak
                 // user existence because we never queried.
+                audit.loginFailure(cmd.email(), "password_format");
                 return Result.err(new AuthError.InvalidCredentials());
             }
             Password password = ((Result.Ok<Password, ?>) passwordResult).value();
@@ -119,6 +124,7 @@ public final class Login implements UseCase<LoginCommand, AuthSession, AuthError
             Result<Email, Email.ParseError> emailResult = Email.parse(cmd.email());
             if (emailResult.isErr()) {
                 hasher.verify(password, decoyHash);
+                audit.loginFailure(cmd.email(), "email_format");
                 return Result.err(new AuthError.InvalidCredentials());
             }
             Email email = ((Result.Ok<Email, Email.ParseError>) emailResult).value();
@@ -135,6 +141,8 @@ public final class Login implements UseCase<LoginCommand, AuthSession, AuthError
 
             // Both conditions checked together — uniform response.
             if (userOpt.isEmpty() || !passwordMatch) {
+                audit.loginFailure(cmd.email(),
+                    userOpt.isEmpty() ? "user_missing" : "password_mismatch");
                 return Result.err(new AuthError.InvalidCredentials());
             }
 
@@ -150,11 +158,12 @@ public final class Login implements UseCase<LoginCommand, AuthSession, AuthError
             // alternative would confuse legitimate users whose accounts
             // were suspended.
             if (user.status() instanceof UserStatus.Deactivated) {
+                audit.loginFailure(cmd.email(), "account_inactive");
                 return Result.err(new AuthError.AccountInactive(user.id()));
             }
 
             Instant now = clock.instant();
-            Role role = Role.Member.INSTANCE;  // Phase 3 will source from User.role
+            Role role = user.role();
             var accessToken = tokenIssuer.issue(user.id(), role, now);
             var plaintext = refreshStrategy.generatePlaintext();
             var refreshHash = refreshStrategy.hash(plaintext);
@@ -162,6 +171,7 @@ public final class Login implements UseCase<LoginCommand, AuthSession, AuthError
             var refreshToken = RefreshToken.issue(user.id(), refreshHash, refreshExpiry, now);
             refreshTokens.save(refreshToken);
 
+            audit.loginSuccess(user.id(), email);
             return Result.ok(new AuthSession(
                 user.id(), role, accessToken, plaintext, refreshExpiry
             ));

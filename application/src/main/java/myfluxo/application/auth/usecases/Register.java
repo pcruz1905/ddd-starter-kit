@@ -3,6 +3,7 @@ package myfluxo.application.auth.usecases;
 import jakarta.inject.Singleton;
 import myfluxo.application.UnitOfWork;
 import myfluxo.application.UseCase;
+import myfluxo.application.auth.AuthAuditLogger;
 import myfluxo.application.auth.AuthSession;
 import myfluxo.application.auth.RefreshTokenTtl;
 import myfluxo.application.auth.commands.RegisterCommand;
@@ -48,6 +49,7 @@ public final class Register implements UseCase<RegisterCommand, AuthSession, Aut
     private final TokenIssuer tokenIssuer;
     private final RefreshTokenStrategy refreshStrategy;
     private final DomainEventPublisher events;
+    private final AuthAuditLogger audit;
     private final UnitOfWork uow;
     private final Clock clock;
     private final Duration refreshTokenTtl;
@@ -60,6 +62,7 @@ public final class Register implements UseCase<RegisterCommand, AuthSession, Aut
         TokenIssuer tokenIssuer,
         RefreshTokenStrategy refreshStrategy,
         DomainEventPublisher events,
+        AuthAuditLogger audit,
         UnitOfWork uow,
         Clock clock,
         RefreshTokenTtl refreshTokenTtl
@@ -71,6 +74,7 @@ public final class Register implements UseCase<RegisterCommand, AuthSession, Aut
         this.tokenIssuer = tokenIssuer;
         this.refreshStrategy = refreshStrategy;
         this.events = events;
+        this.audit = audit;
         this.uow = uow;
         this.clock = clock;
         this.refreshTokenTtl = refreshTokenTtl.value();
@@ -117,6 +121,7 @@ public final class Register implements UseCase<RegisterCommand, AuthSession, Aut
             // commit atomically with aggregate saves.
             events.publishAll(user.pullEvents());
 
+            audit.registered(user.id(), email);
             return Result.ok(session);
         });
     }
